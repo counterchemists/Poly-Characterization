@@ -1,44 +1,18 @@
 //Data collection code for magnet-feedback experiment
-String filename = "003_015_060.csv";
 String textileID = "003_015_060"; // serialStep1Step2 --> 000_000_0000 --> ID_Minutes_Minutes
+String filename = textileID + ".csv";
 
 //for logging data
 import java.io.BufferedWriter; //log lines
 import java.io.FileWriter; //create files
 
-//----------Serial---------------//
 import processing.serial.*; //include the serial library
-
-Serial arduinoPort;  // The serial port at which we listen to data from the Arduino
-String rawIncomingValues; //this is where you dump the content of the serial port
-int[] incomingValues = { 0, 0, 0, 0, 0, 0, 0 };     //this is where you will store the incoming values, so you can use them in your program
-int token = 10; //10 is the linefeed number in ASCII
-//You can replace it with whatever symbol marks the end of your line (http://www.ascii-code.com/)
-boolean connectionEstablished = false;
-//---------end--Serial----------//
-
 
 //----------Configure ReadingToResistance Stuff---------------//
 
-
-long resistor2Values[] = {10000000, 1000000, 100000, 10000, 1000, 220, 10}; //
-float voltIn = 3.3;
-float[] calculatedVoltages  = { 0, 0, 0, 0, 0, 0, 0 };
-float[] calculatedResistance  = { 0, 0, 0, 0, 0, 0, 0 };
-int midPoint = 1024; //use this for chosing which resistance calculation is the most reliable
-int numberOfresister2 = 7;
-
-String HEADER = "ID,Time,Task,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,Newton,Weight";
+String HEADER = "ID,Time,Task,Resistance,Newton,Weight";                                  // TODO: Check if OK
 
 //----------------------------------------------------------//
-
-
-int sampleID; // count the number of samples collected
-int textileReading; // ADC values
-int textileVoltage; // transform ADC values to voltage;
-int textileResistance; //calculate resistance based on voltage divider formula
-int newton; // newton
-
 
 boolean spacePressed = false;
 boolean recording = false;
@@ -52,17 +26,12 @@ int weightsPressure[] = {5, 10, 20, 50, 100, 200, 500}; //populate array with we
 int weightsStrain[] = {5, 10, 20, 50, 100, 200, 500}; //populate array with weights to use in characterization
 
 int numberOfSamples = 300; //how many samples should be recorded
-//int numberOfConditions = 4; //pressure vs stretch
 String[] tasks ={"PressureDynamics", "Pressure", "SquareResistance", "Stretch"}; //name of the tasks
 boolean weightPlaced = false;
 int taskStage = 0;
 
 int lineCounter = 0; //will be incremented with each writing
 int currentTask = 0;
-//String currentConditionName;
-//int currentRepetition;
-
-//log this --> ID, currentCondition, currentAction, currentRepitition, textileReading, textileResistance, newton
 
 //----------------UI features-----------------//
 
@@ -82,8 +51,8 @@ int[] pos_timer = { 500, 200 };
 //font to make things look nice
 PFont font;
 
-void setup() {
 
+void setup() {
 
   textAlign(CENTER);
   font = createFont("arial", 18); //this is just for easthetics.
@@ -91,18 +60,7 @@ void setup() {
 
   size(1000, 600);
 
-  //--------Serial-----------//
-  // List all the available serial ports
-  println("these are the available ports: ");
-  printArray(Serial.list());
-  //chose your serial port, by putting the correct number in the square brackets
-  //you might need to just trial and error this, the first time you do it
-  String serialPort = Serial.list()[0];
-  //check if you are using the port you think you are using
-  println("You are using this port: " + serialPort);
-  // Open the port with the same baud rate you set in your arduino
-  arduinoPort = new Serial(this, serialPort, 9600);
-  //-----------endSerial------------//
+  arduinoSerialSetup();
 
   //initializing the buttons. The text is formatted like this: "name of button: button hotkey"
   next = new Button("next:x");
@@ -110,11 +68,7 @@ void setup() {
   pause = new Button("pause:p");
   placeWeight = new Button("nextWeight: ");
 
-  //experiment logic
-  // currentCondition = 0; <--- index/samples
-  //updateArduino();
-
-  setupNewtonmeter(Serial.list()[1]);
+  setupNewtonmeter();
 }
 
 
@@ -307,7 +261,6 @@ void draw() {
   //}
 
 
-
   //stretch in direction of the courses: https://www.kobakant.at/DIY/?p=5689
 
   //display the buttons by providing them with x & y coordinate as well as height and width
@@ -339,7 +292,6 @@ void draw() {
       previous.toggle(); //switches button state
       //currentCondition--; <--needs to be index (also check repititions
       updateTask(currentTask-1);
-      //updateArduino();
     }
   }
 
@@ -369,24 +321,6 @@ void keyPressed() {
   //println("Key pressed: "+key);
 }
 
-// write a different function for each task?
-//void logLine() {
-//  // missing:
-//  // incoming value, newton (computed by Newtonmeter),
-
-//  //log this --> ID, currentCondition, currentAction, currentRepitition, textileReading, textileResistance, newton
-//  appendTextToFile(filename, textileID + ",\t ");
-//  appendTextToFile(filename, currentTime() + ",\t ");
-//  appendTextToFile(filename, currentTask + ",\t\t ");
-//  appendTextToFile(filename, textileReading + ",\t\t ");
-//  appendTextToFile(filename, textileResistance + ",\t\t ");
-//  appendTextToFile(filename, newton + ",\t\t ");
-//  appendTextToFile(filename, weightPlaced + ",\t\t ");
-//  appendTextToFile(filename, "\r\n");
-//  lineCounter++;
-//  //println("We wrote data with the ID: " + lineCounter + " to the file");
-//}
-
 
 void updateTask(int tid) {
   currentTask = tid;
@@ -399,19 +333,6 @@ void updateTask(int tid) {
     currentTask = 0;
     //currentRepetition++;
   }
-  //if (currentRepetition == numberOfRepititions) {
-  //  fill(100);
-  //  rect(0, 0, width, height);
-  //  fill(255);
-  //  text("DONE!", width/2, height/2);
-  //  arduino.write("f 0 0");
-  //  noLoop();
-  //}
-  //write to arduino
-  //write
-  //frequency condition is frequency (as chosen from the freqSelector, as determined by random number)
-  //frequencyCondition = frequency[freqSelector[randomCondition[(participantID*3)+currentRepetition][currentCondition]]];
-  //pulseWidthCondition = duration[durationSelector[randomCondition[(participantID*3)+currentRepetition][currentCondition]]];
 }
 
 String currentTime() {
