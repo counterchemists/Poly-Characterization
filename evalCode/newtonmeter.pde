@@ -4,6 +4,9 @@ Serial port;
 
 void setupNewtonmeter() {
   String portname;
+  if (System.getProperty("os.name").equals("Linux"))
+    portname = "/dev/ttyACM0";
+  else
     portname = Serial.list()[1];
   port = new Serial(this, portname, 9600);
 }

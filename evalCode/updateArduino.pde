@@ -17,6 +17,9 @@ void arduinoSerialSetup() {
   //you might need to just trial and error this, the first time you do it
 
   String serialPort;
+  if (System.getProperty("os.name").equals("Linux"))
+    serialPort = "/dev/ttyUSB0";
+  else
     serialPort = Serial.list()[0];
 
   //check if you are using the port you think you are using
