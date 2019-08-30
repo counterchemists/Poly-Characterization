@@ -60,8 +60,6 @@ void setup() {
 
   size(1000, 600);
 
-  arduinoSerialSetup();
-
   //initializing the buttons. The text is formatted like this: "name of button: button hotkey"
   next = new Button("next:x");
   previous = new Button("previous:z");
@@ -69,6 +67,7 @@ void setup() {
   placeWeight = new Button("nextWeight: ");
 
   setupNewtonmeter();
+  setupOhmmeter();
 }
 
 
@@ -76,6 +75,14 @@ void draw() {
   //set the background
   background(180, 170, 210);
   fill(255);
+
+
+  if(recording) {
+    recordM.addRValue(readOhmmeter());
+    float tmp = recordM.recordingNM() ? readNewton() : -1.0;
+    recordM.addNMValue(tmp);
+  }
+
 
   textAlign(CENTER);
   taskname = tasks[currentTask];
@@ -252,14 +259,6 @@ void draw() {
         break;
     }
   }
-
-
-  // for debugging
-  //if(recording) {
-  //  recordM.addValues(new int[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8 });
-  //  recordM.addNMValue(10);
-  //}
-
 
   //stretch in direction of the courses: https://www.kobakant.at/DIY/?p=5689
 
