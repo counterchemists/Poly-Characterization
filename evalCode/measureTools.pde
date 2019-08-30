@@ -59,8 +59,8 @@ void setupOhmmeter() {
     exit();
   }
 
-  // set multimeter to measure resistance:
-  ohmmeterPort.write("conf:res\n");
+  // set multimeter to measure resistance (+turn display off for speed):
+  ohmmeterPort.write("conf:res\nDISP OFF\n");
 }
 
 
