@@ -79,6 +79,7 @@ void draw() {
 
   if(recording) {
     recordM.addRValue(readOhmmeter());
+    recordM.addTimestamp(millis());
     float tmp = recordM.recordingNM() ? readNewton() : -1.0;
     recordM.addNMValue(tmp);
   }
