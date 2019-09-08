@@ -1,5 +1,5 @@
 //Data collection code for magnet-feedback experiment
-String textileID = "003_015_060"; // serialStep1Step2 --> 000_000_0000 --> ID_Minutes_Minutes
+String textileID = "pushdynamics_betterSettings3"; // serialStep1Step2 --> 000_000_0000 --> ID_Minutes_Minutes
 String filename = textileID + ".csv";
 
 //for logging data
@@ -44,13 +44,21 @@ Button placeWeight;
 String taskname;
 String instructions = null;
 String timer = "";
-int[] pos_tn = { 500, 150 };
-int[] pos_inst = { 500, 175 };
-int[] pos_timer = { 500, 200 };
+int[] pos_tn = { 500, 150 }; //position of taskname
+int[] pos_inst = { 500, 175 };//position of instructions
+int[] pos_timer = { 500, 200 };//position of timer
 
 //font to make things look nice
 PFont font;
 
+float resistanceReading = -2;
+float newtonReading = -2;
+float[] resistanceArray = new float [500];//for visualizing
+float[] newtonArray = new float [500]; //for visualizing
+float newtonMax;
+float newtonMin;
+float resMax;
+float resMin;
 
 void setup() {
 
@@ -76,13 +84,19 @@ void draw() {
   background(180, 170, 210);
   fill(255);
 
+  //read the devices
+  resistanceReading = readOhmmeter();
+  newtonReading = readNewton();
 
-  if(recording) {
-    recordM.addRValue(readOhmmeter());
+  //write to file, if required
+  if (recording) {
+    recordM.addRValue( resistanceReading);
     recordM.addTimestamp(millis());
-    float tmp = recordM.recordingNM() ? readNewton() : -1.0;
+    float tmp = recordM.recordingNM() ? newtonReading : -1.0;
     recordM.addNMValue(tmp);
   }
+  
+
 
 
   textAlign(CENTER);
@@ -93,171 +107,181 @@ void draw() {
     //logLine();
 
     switch(taskStage) {
-      case 0:
-        if(instructions == null) { instructions = "Press the 'space' bar to start recording"; }
-        if(spacePressed) {
-          taskStage = 1;
-          recordM.recordNM(true);
-          recording = true;
-          spacePressed = false;
-          instructions = "Get ready";
-          //startTime = millis();
-          countdown = millis() + 5000;
-        }
-        break;
-      case 1:
+    case 0:
+      if (instructions == null) { 
+        instructions = "Press the 'space' bar to start recording";
+      }
+      if (spacePressed) {
+        taskStage = 1;
+        recordM.recordNM(true);
+        recording = true;
+        spacePressed = false;
+        instructions = "Get ready";
+        //startTime = millis();
+        countdown = millis() + 5000;
+      }
+      break;
+    case 1:
       background(250, 170, 210);
-        if(countdown <= millis()) {
-                      instructions = "Put the weight on the material";
+      if (countdown <= millis()) {
+        instructions = "Put the weight on the material";
+        timer = null;
+        taskStage = 2;
+        //recording = false;
+        startTime = millis();
+      } else {
+        int dt = countdown-millis();
+        timer = (dt/1000) + ":" + (dt%1000);
+      }
+      break;
+    case 2:
+      if (recording) {
+        int dt = millis() - startTime;
+        if (dt > taskDelays[currentTask]) {
+          background(250, 170, 210);
+          instructions = "Remove the weight from the material";
           timer = null;
-          taskStage = 2;
+          taskStage = 3;
           //recording = false;
           startTime = millis();
         } else {
-          int dt = countdown-millis();
           timer = (dt/1000) + ":" + (dt%1000);
         }
-        break;
-      case 2:
-        if(recording) {
-          int dt = millis() - startTime;
-          if(dt > taskDelays[currentTask]) {
-              background(250, 170, 210);
-            instructions = "Remove the weight from the material";
-            timer = null;
-            taskStage = 3;
-            //recording = false;
-            startTime = millis();
-          } else {
-            timer = (dt/1000) + ":" + (dt%1000);
-          }
-        }
-        break;
-      case 3:
-        //if(spacePressed) { recording = true; spacePressed = false; startTime = millis(); }
-        if(recording) {
-          int dt = millis() - startTime;
-          if(dt > taskDelays[currentTask]) {
-            instructions = "Task finished (recording data)";
-            timer = null;
-            taskStage = 4;
-          } else {
-            timer = (dt/1000) + ":" + (dt%1000);
-          }
-        }
-        break;
-      case 4:
-        recording = false;
-        recordM.record(textileID, taskname, -1);
-        instructions = "Data recorded in "+filename+"!";
-        taskStage = 5;
-        break;
-      case 5:
-        break;
       }
+      break;
+    case 3:
+      //if(spacePressed) { recording = true; spacePressed = false; startTime = millis(); }
+      if (recording) {
+        int dt = millis() - startTime;
+        if (dt > taskDelays[currentTask]) {
+          instructions = "Task finished (recording data)";
+          timer = null;
+          taskStage = 4;
+        } else {
+          timer = (dt/1000) + ":" + (dt%1000);
+        }
+      }
+      break;
+    case 4:
+      recording = false;
+      recordM.record(textileID, taskname, -1);
+      instructions = "Data recorded in "+filename+"!";
+      taskStage = 5;
+      break;
+    case 5:
+      break;
+    }
   } else if (taskname.equals("Pressure")) {
     switch(taskStage) {
-      case 0:
-        if(instructions == null) {
-          if(wid < weightsPressure.length) { instructions = String.format("Place %dg on the material (Spacebar starts recrording)", weightsPressure[wid]); }
-          else { taskStage = 3; }
+    case 0:
+      if (instructions == null) {
+        if (wid < weightsPressure.length) { 
+          instructions = String.format("Place %dg on the material (Spacebar starts recrording)", weightsPressure[wid]);
+        } else { 
+          taskStage = 3;
         }
-        if(spacePressed) {
-          taskStage = 1;
-          recordM.recordNM(true);
-          recording = true;
-          spacePressed = false;
-          instructions = "Recording...";
-          startTime = millis();
-        }
-        break;
-      case 1:
-        int dt = millis() - startTime;
-        timer = (dt/1000) + ":" + (dt%1000);
-        if(dt > taskDelays[currentTask]) {
-          instructions = String.format("Remove the weight from the material (saving data in %s)", filename);
-          timer = null;
-          taskStage = 2;
-        }
-        break;
-      case 2: // saving data
-        recording = false;
-        recordM.record(textileID, taskname, weightsPressure[wid]);
-        instructions = null;
-        wid++;
-        taskStage = 0;
-        break;
-      case 3:
-        instructions = "All data recorded in "+filename+"!";
-        break;
+      }
+      if (spacePressed) {
+        taskStage = 1;
+        recordM.recordNM(true);
+        recording = true;
+        spacePressed = false;
+        instructions = "Recording...";
+        startTime = millis();
+      }
+      break;
+    case 1:
+      int dt = millis() - startTime;
+      timer = (dt/1000) + ":" + (dt%1000);
+      if (dt > taskDelays[currentTask]) {
+        instructions = String.format("Remove the weight from the material (saving data in %s)", filename);
+        timer = null;
+        taskStage = 2;
+      }
+      break;
+    case 2: // saving data
+      recording = false;
+      recordM.record(textileID, taskname, weightsPressure[wid]);
+      instructions = null;
+      wid++;
+      taskStage = 0;
+      break;
+    case 3:
+      instructions = "All data recorded in "+filename+"!";
+      break;
     }
   } else if (taskname.equals("SquareResistance")) {
     switch(taskStage) {
-      case 0:
-        if(instructions == null) { instructions = "Place the electrodes on the material (SWAP ELECTRODES)"; }
-        if(spacePressed) {
-          taskStage = 1;
-          recordM.recordNM(false);
-          recording = true;
-          spacePressed = false;
-          instructions = "Recording...";
-          startTime = millis();
-        }
-        break;
-      case 1:
-        int dt = millis() - startTime;
-        timer = (dt/1000) + ":" + (dt%1000);
-        if(dt > taskDelays[currentTask]) {
-          instructions = String.format("Task finished (recording data)", filename);
-          timer = null;
-          taskStage = 2;
-        }
-        break;
-      case 2:
-        recording = false;
-        recordM.record(textileID, taskname, -1);
-        taskStage = 3;
-        break;
-      case 3:
-        instructions = "All data recorded in "+filename+"!";
-        break;
+    case 0:
+      if (instructions == null) { 
+        instructions = "Place the electrodes on the material (SWAP ELECTRODES)";
+      }
+      if (spacePressed) {
+        taskStage = 1;
+        recordM.recordNM(false);
+        recording = true;
+        spacePressed = false;
+        instructions = "Recording...";
+        startTime = millis();
+      }
+      break;
+    case 1:
+      int dt = millis() - startTime;
+      timer = (dt/1000) + ":" + (dt%1000);
+      if (dt > taskDelays[currentTask]) {
+        instructions = String.format("Task finished (recording data)", filename);
+        timer = null;
+        taskStage = 2;
+      }
+      break;
+    case 2:
+      recording = false;
+      recordM.record(textileID, taskname, -1);
+      taskStage = 3;
+      break;
+    case 3:
+      instructions = "All data recorded in "+filename+"!";
+      break;
     }
   } else if (taskname.equals("Stretch")) {
-        switch(taskStage) {
-      case 0:
-        if(instructions == null) {
-          if(wid < weightsPressure.length) { instructions = String.format("Stretch the material with %dg", weightsStrain[wid]); }
-          else { taskStage = 3; }
+    switch(taskStage) {
+    case 0:
+      if (instructions == null) {
+        if (wid < weightsPressure.length) { 
+          instructions = String.format("Stretch the material with %dg", weightsStrain[wid]);
+        } else { 
+          taskStage = 3;
         }
-        if(spacePressed) {
-          taskStage = 1;
-          recordM.recordNM(false);
-          recording = true;
-          spacePressed = false;
-          instructions = "Recording...";
-          startTime = millis();
-        }
-        break;
-      case 1:
-        int dt = millis() - startTime;
-        timer = (dt/1000) + ":" + (dt%1000);
-        if(dt > taskDelays[currentTask]) {
-          instructions = String.format("Remove the weight (saving data in %s)", filename);
-          timer = null;
-          taskStage = 2;
-        }
-        break;
-      case 2:
-        recording = false;
-        recordM.record(textileID, taskname, weightsStrain[wid]);
-        instructions = null;
-        wid++;
-        taskStage = 0;
-        break;
-      case 3:
-        instructions = "All data recorded in "+filename+"!";
-        exit();
-        break;
+      }
+      if (spacePressed) {
+        taskStage = 1;
+        recordM.recordNM(false);
+        recording = true;
+        spacePressed = false;
+        instructions = "Recording...";
+        startTime = millis();
+      }
+      break;
+    case 1:
+      int dt = millis() - startTime;
+      timer = (dt/1000) + ":" + (dt%1000);
+      if (dt > taskDelays[currentTask]) {
+        instructions = String.format("Remove the weight (saving data in %s)", filename);
+        timer = null;
+        taskStage = 2;
+      }
+      break;
+    case 2:
+      recording = false;
+      recordM.record(textileID, taskname, weightsStrain[wid]);
+      instructions = null;
+      wid++;
+      taskStage = 0;
+      break;
+    case 3:
+      instructions = "All data recorded in "+filename+"!";
+      exit();
+      break;
     }
   }
 
@@ -303,15 +327,47 @@ void draw() {
   }
 
   textAlign(LEFT);
-  if(taskname != null && taskname.length() != 0) {
+  if (taskname != null && taskname.length() != 0) {
     text(taskname, pos_tn[0], pos_tn[1]);
   }
-  if(instructions != null && instructions.length() != 0) {
+  if (instructions != null && instructions.length() != 0) {
     text(instructions, pos_inst[0], pos_inst[1]);
   }
-  if(timer != null && timer.length() != 0) {
+  if (timer != null && timer.length() != 0) {
     text(timer, pos_timer[0], pos_timer[1]);
   }
+  
+  //visualize the output
+  for (int i = 0; i < resistanceArray.length-1; i = i+1) {
+    resistanceArray[i] = resistanceArray[i+1]; //shift all values left
+    newtonArray[i] = newtonArray[i+1];
+  }
+
+  resistanceArray[499] = resistanceReading;
+  newtonArray[499] = newtonReading;
+ resMax = max(resistanceArray);
+ resMin = min(resistanceArray);
+ newtonMax = max (newtonArray);
+ newtonMin = min (newtonArray);
+ 
+ 
+  for (int i = 1; i < resistanceArray.length; i = i+1) {
+    stroke(0);
+    line(i-1, 100 - map(resistanceArray[i-1], resMin, resMax, 0, 100 ),
+    i, 100 - map(resistanceArray[i], resMin, resMax, 0, 100 ));
+    
+    stroke(255);
+    line(i-1, 200 - map(newtonArray[i-1], newtonMin, newtonMax, 0, 100 ),
+    i, 200 - map(newtonArray[i], newtonMin, newtonMax, 0, 100 ));
+   
+   // resistanceArray[i] = resistanceArray[i+1];
+   // newtonArray[i] = newtonArray[i+1];
+  
+  }
+ 
+
+
+
 }
 
 void keyPressed() {

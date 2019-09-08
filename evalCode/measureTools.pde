@@ -18,7 +18,7 @@ void setupNewtonmeter() {
 
   println("Opening " + portname);
   try {
-    newtonmeterPort = new Serial(this, portname, 9600);
+    newtonmeterPort = new Serial(this, "COM4", 9600);
   }
   catch (Exception e) {
     println(e);
@@ -41,7 +41,7 @@ float readNewton() {
 /////////////////////////////////////////////////////
 // OHM METER:
 
-void setupOhmmeter() {
+void setupOhmmeter() {//manually setOhmmeter to 5digit .2plc before starting sketch
   String portname;
 
   if (System.getProperty("os.name").equals("Linux"))
@@ -49,7 +49,7 @@ void setupOhmmeter() {
   else
     portname = Serial.list()[1];
 
-  ohmmeterPort = new Serial(this, portname, 115200);
+  ohmmeterPort = new Serial(this, "COM3", 115200);
   try {
     println("Opening " + portname);
   }
@@ -60,16 +60,22 @@ void setupOhmmeter() {
   }
 
   // set multimeter to measure resistance (+turn display off for speed):
-  ohmmeterPort.write("conf:res\nDISP OFF\n");
+   ohmmeterPort.write("DISP OFF\n");
 }
 
 
-float readOhmmeter() {
+float readOhmmeter() { //manually setOhmmeter to 5digit .2plc
   // fetch a measure:
   ohmmeterPort.write("INIT\nFETC?\n");
   while (ohmmeterPort.available() <= 0) delay(1); // delay seems mandatory
 
   String inBuffer = ohmmeterPort.readString();
-
-  return float(inBuffer);
+  float[] inValues = float(split(inBuffer, ","));
+  print(inValues.length + " ---> "); 
+  if (inValues.length>2) {
+    println(inValues[inValues.length-2]);//I discard the last one, in case its malformed, and use the most recent one after
+    return inValues[inValues.length-2];
+  } else {
+    return Float.NaN;
+  }
 }
